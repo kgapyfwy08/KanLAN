@@ -1,0 +1,7 @@
+name = "kanlan"
+main = "src/index.ts"
+compatibility_date = "2025-02-05"
+
+[assets]
+directory = "./public/"
+binding = "ASSETS"
