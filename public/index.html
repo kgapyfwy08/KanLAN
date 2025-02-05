@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>加载中...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    /* 全局样式 */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    /* 卡片样式 */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+    /* 在线状态样式 */
+    .status-online {
+      color: #28a745;
+      font-weight: bold;
+    }
+    .status-offline {
+      color: #6c757d;
+    }
+    /* 网格布局 */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    /* 徽章和时间样式 */
+    .badge {
+      background: #e9ecef;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .time {
+      font-size: 0.9em;
+      color: #666;
+    }
+    /* 错误消息 */
+    #error-message {
+      color: red;
+      margin-bottom: 1rem;
+    }
+    /* 复制按钮 */
+    .copy-button {
+      background: #007bff;
+      border: none;
+      color: #fff;
+      padding: 4px 8px;
+      margin-left: 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .copy-button:hover {
+      background: #0056b3;
+    }
+    /* emoji 对齐 */
+    .emoji {
+      display: inline-block;
+      width: 1.2em;
+      text-align: center;
+      margin-right: 0.5em;
+    }
+    /* Toast 通知样式 */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 0.5s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="dashboard-title">KanLAN</h1>
+    <div id="kanban-information"></div>
+    <div id="error-message"></div>
+    <div class="grid" id="members-container"></div>
+  </div>
+  <!-- Toast 提示层 -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // 从 URL 查询参数中获取 net_id 和 token
+    const params = new URLSearchParams(window.location.search);
+    const netId = params.get('net_id');
+    const token = params.get('token');
+
+    if (!netId || !token) {
+      window.location.href = 'setup.html';
+    }
+
+    // 默认标题为 netId，待获取网络详情后更新
+    document.title = `${netId} - KanLAN`;
+    document.getElementById('dashboard-title').textContent = `${netId} KanLAN`;
+
+    const errorContainer = document.getElementById('error-message');
+    const kanbanInformationContainer = document.getElementById('kanban-information');
+    const membersContainer = document.getElementById('members-container');
+    const MEMBER_CACHE_KEY = `ztDashboardCache_${netId}`;
+    const CACHE_DURATION = 60000; // 缓存时长：1分钟
+
+    // 网络数据永久缓存的 key
+    const NETWORK_CACHE_KEY = `ztNetworkCache_${netId}`;
+
+    /**
+     * 显示 Toast 提示，不打断用户操作
+     */
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    /**
+     * 复制文本到剪贴板
+     * @param {string} text - 要复制的文本
+     * @param {HTMLElement} button - 当前点击的按钮（用于触发提示）
+     */
+    function copyText(text, button) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`已复制: ${text}`);
+      }).catch(err => {
+        console.error('复制失败: ', err);
+        showToast('复制失败');
+      });
+    }
+
+    /**
+     * 渲染单个成员卡片
+     * 仅显示 authorized 为 true 的成员
+     */
+    function renderMember(member) {
+      const now = Date.now();
+      const isOnline = (now - member.lastOnline) < 120000;
+      const internalIP = (member.config.ipAssignments && member.config.ipAssignments.length)
+                           ? member.config.ipAssignments[0]
+                           : null;
+
+      let ipHtml = '';
+      if (internalIP) {
+        ipHtml += `<div>
+                    <span class="emoji">🏠</span> 内网 IP: <span class="badge" id="internal-ip-${member.nodeId}">${internalIP}</span>
+                    <button class="copy-button" onclick="copyText('${internalIP}', this)">复制</button>
+                  </div>`;
+      }
+
+      return `
+        <div class="card">
+          <div style="margin-bottom: 1rem;">
+            <h3 style="margin: 0;"><span class="emoji">📌</span> ${member.name || '未命名设备'}</h3>
+          </div>
+          <div style="display: grid; gap: 0.5rem;">
+            ${member.description ? `<div><span class="emoji">📝</span> 备注: <span class="badge">${member.description}</span></div>` : ''}
+            <div>
+              <span class="emoji">🆔</span> Node ID:
+              <span class="badge" id="nodeid-${member.nodeId}">${member.nodeId}</span>
+              <button class="copy-button" onclick="copyText('${member.nodeId}', this)">复制</button>
+            </div>
+            <div><span class="emoji">📱</span> 客户端: ${member.clientVersion} (协议 v${member.protocolVersion})</div>
+            <div>
+              <span class="emoji">🕒</span> 最后活动: 
+              ${isOnline
+                ? '<span class="status-online">🟢 在线</span>'
+                : `<span class="status-offline">🔴 离线 ${new Date(member.lastOnline).toLocaleString()}</span>`
+              }
+            </div>
+            ${ipHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    // 从 localStorage 中获取缓存数据（成员数据，1 分钟失效）
+    function getCachedData() {
+      try {
+        const cached = localStorage.getItem(MEMBER_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.timestamp < CACHE_DURATION) {
+            return parsed.data;
+          }
+        }
+      } catch (e) {
+        console.error('读取缓存失败', e);
+      }
+      return null;
+    }
+
+    // 保存成员数据到 localStorage 缓存
+    function setCachedData(data) {
+      try {
+        localStorage.setItem(MEMBER_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data }));
+      } catch (e) {
+        console.error('写入缓存失败', e);
+      }
+    }
+
+    // 渲染数据到页面（成员信息）
+    function renderData(data) {
+      if (Array.isArray(data)) {
+        // 仅显示 authorized 为 true 的成员
+        const authorizedMembers = data.filter(member => member.config.authorized);
+        if (authorizedMembers.length === 0) {
+          membersContainer.innerHTML = `<div class="card">没有授权的成员。</div>`;
+        } else {
+          membersContainer.innerHTML = authorizedMembers.map(renderMember).join('');
+        }
+      } else if (data.error) {
+        membersContainer.innerHTML = `<div class="card">错误: ${data.error}</div>`;
+      } else {
+        membersContainer.innerHTML = `<div class="card">数据格式错误</div>`;
+      }
+    }
+
+    /**
+     * 获取网络详情数据（网络名称等），并永久缓存，不重复请求
+     */
+    async function fetchNetworkData() {
+      // 先尝试读取缓存的网络数据
+      const cachedNetworkData = localStorage.getItem(NETWORK_CACHE_KEY);
+      if (cachedNetworkData) {
+        try {
+          const networkData = JSON.parse(cachedNetworkData);
+          updateNetworkTitle(networkData);
+          return;
+        } catch (e) {
+          console.error('读取缓存网络数据失败', e);
+        }
+      }
+      // 构造Network API 地址
+      const networkAPIPath = `/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId)}`;
+      try {
+        // 发起请求到 ZeroTier 生产环境 API
+        const response = await fetch(networkAPIPath);
+        if (!response.ok) {
+          throw new Error(`HTTP 错误: ${response.status}`);
+        }
+        const networkData = await response.json();
+        // 永久缓存网络数据（无过期时间）
+        localStorage.setItem(NETWORK_CACHE_KEY, JSON.stringify(networkData));
+        updateNetworkTitle(networkData);
+      } catch (error) {
+        console.error('获取网络数据失败:', error);
+        errorContainer.textContent = `获取网络数据失败: ${error.message}`;
+      }
+    }
+
+    /**
+     * 根据网络数据更新页面标题
+     * @param {Object} networkData - 网络详情数据
+     */
+    function updateNetworkTitle(networkData) {
+      if (networkData && networkData.config && networkData.config.name) {
+        const networkName = networkData.config.name;
+        document.title = `${networkName} - KanLAN`;
+        document.getElementById('dashboard-title').textContent = `${networkName} KanLAN`;
+      }
+    }
+
+    // 获取成员数据
+    async function fetchData() {
+      // 显示当前 KanLAN 地址
+      const kanbanAddress = window.location.href;
+      const kanbanHtml = `<div>
+                             <span class="emoji">🔗</span> Kanban 地址: 
+                             <span class="badge" id="kanban-address">${kanbanAddress}</span>
+                             <button class="copy-button" onclick="copyText('${kanbanAddress}', this)">复制</button>
+                           </div>`;
+      kanbanInformationContainer.innerHTML = kanbanHtml;
+
+      // 优先尝试使用缓存（成员数据）
+      const cachedData = getCachedData();
+      if (cachedData) {
+        console.log('使用缓存数据');
+        renderData(cachedData);
+        return;
+      }
+
+      errorContainer.textContent = '加载数据中...';
+
+      // 构造成员 API 地址
+      const memberAPIPath = `/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId + '/member')}`;
+
+      try {
+        const response = await fetch(memberAPIPath);
+        if (!response.ok) {
+          throw new Error(`HTTP 错误：${response.status}`);
+        }
+        const data = await response.json();
+        console.log('获取数据:', data);
+        setCachedData(data);
+        renderData(data);
+        errorContainer.textContent = '';
+      } catch (error) {
+        console.error('请求失败:', error);
+        errorContainer.textContent = `请求失败: ${error.message}`;
+      }
+    }
+
+    // 初始加载：先获取网络详情（仅一次），再加载成员数据
+    fetchNetworkData();
+    fetchData();
+    // 每 1 分钟刷新一次成员数据（同时更新缓存）
+    setInterval(fetchData, CACHE_DURATION);
+  </script>
+</body>
+</html>
