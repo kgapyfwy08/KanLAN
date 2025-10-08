@@ -243,12 +243,6 @@
     <div id="kanban-information" class="card"></div>
     <section class="section">
       <div class="section-header">
-        <h2>网络概览</h2>
-      </div>
-      <div id="network-overview" class="grid"></div>
-    </section>
-    <section class="section">
-      <div class="section-header">
         <h2>成员统计</h2>
         <span id="last-updated" class="section-subtitle"></span>
       </div>
@@ -267,6 +261,12 @@
         <span id="pending-count" class="section-subtitle"></span>
       </div>
       <div class="grid" id="pending-members"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2>网络概览</h2>
+      </div>
+      <div id="network-overview" class="grid"></div>
     </section>
   </div>
   <!-- Toast 提示层 -->
@@ -363,7 +363,6 @@
               <span class="badge" id="nodeid-${member.nodeId}">${member.nodeId}</span>
               <button class="copy-button" onclick="copyText('${member.nodeId}', this)">复制</button>
             </div>
-            <div><span class="emoji">📱</span> 客户端: ${member.clientVersion || '未知'} (协议 v${member.protocolVersion || '未知'})</div>
             <div><span class="emoji">📡</span> 实体地址: ${physicalAddress}</div>
             <div>
               <span class="emoji">🕒</span> 最后活动:
@@ -447,8 +446,8 @@
     function renderMemberStats(authorizedMembers, pendingMembers) {
       const onlineCount = authorizedMembers.filter(isMemberOnline).length;
       const offlineCount = authorizedMembers.length - onlineCount;
-      const totalMembers = authorizedMembers.length + pendingMembers.length;
-      const uniqueClients = new Set(authorizedMembers.map(member => member.clientVersion).filter(Boolean)).size;
+      const pendingCount = pendingMembers.length;
+      const totalMembers = authorizedMembers.length + pendingCount;
 
       memberStatsContainer.innerHTML = `
         <div class="stat-card">
@@ -464,8 +463,8 @@
           <strong>${offlineCount}</strong>
         </div>
         <div class="stat-card">
-          <h3>客户端类型</h3>
-          <strong>${uniqueClients}</strong>
+          <h3>待授权设备</h3>
+          <strong style="color:#fd7e14;">${pendingCount}</strong>
         </div>
       `;
       lastUpdatedLabel.textContent = `最近更新：${new Date().toLocaleString()}`;
@@ -481,6 +480,7 @@
         try {
           const networkData = JSON.parse(cachedNetworkData);
           updateNetworkTitle(networkData);
+          renderNetworkOverview(networkData);
           return;
         } catch (e) {
           console.error('读取缓存网络数据失败', e);
