@@ -331,7 +331,7 @@
     }
 
     function showSecurityWarningOnce() {
-      const message = '⚠️ 安全提示：此链接包含可直接访问 ZeroTier 网络的 API Token，泄露给陌生人将可能导致网络配置被查看或篡改。请仅在可信环境保存，并避免分享给非专业人士。';
+      const message = '⚠️ 安全提示：此链接包含可直接访问网络的密钥, 若您需要分享给他人请1对1分享, 若在公开场景分享可能导致陌生人进入网络, 对您的网络/设备/个人信息等产生严重的安全威胁。';
       try {
         if (!localStorage.getItem(KANBAN_SECURITY_NOTICE_KEY)) {
           alert(message);
