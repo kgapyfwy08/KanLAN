@@ -5,62 +5,176 @@
   <title>加载中...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* 全局样式 */
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: #f0f2f5;
       color: #333;
       margin: 0;
-      padding: 0;
+      padding: 2rem 0;
     }
     .container {
       max-width: 1200px;
       margin: 0 auto;
+      padding: 0 1.5rem 3rem;
     }
-    /* 卡片样式 */
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 2.2rem;
+    }
+    .subtitle {
+      margin: 0.25rem 0 0;
+      color: #666;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .button {
+      background: #007bff;
+      border: none;
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.2s;
+    }
+    .button:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+    .button.secondary {
+      background: #6c757d;
+    }
+    .button.secondary:hover {
+      background: #565e64;
+    }
+    .button.danger {
+      background: #dc3545;
+    }
+    .button.danger:hover {
+      background: #a71d2a;
+    }
     .card {
       background: #fff;
       border-radius: 12px;
       padding: 1.5rem;
       margin-bottom: 1rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 15px 35px rgba(15, 23, 42, 0.12);
     }
-    /* 在线状态样式 */
+    .card-title {
+      margin: 0 0 1rem;
+      font-size: 1.3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-subtitle {
+      color: #666;
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+    }
+    .card--pending {
+      border: 1px solid rgba(255, 193, 7, 0.5);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    }
+    .stat-card h3 {
+      margin: 0 0 0.25rem;
+      font-size: 0.95rem;
+      color: #6c757d;
+    }
+    .stat-card strong {
+      font-size: 1.7rem;
+      font-weight: 700;
+    }
+    .section {
+      margin-top: 2rem;
+    }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .section-header h2 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+    .section-subtitle {
+      color: #6c757d;
+    }
     .status-online {
       color: #28a745;
-      font-weight: bold;
+      font-weight: 600;
     }
     .status-offline {
       color: #6c757d;
     }
-    /* 网格布局 */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1rem;
-    }
-    /* 徽章和时间样式 */
     .badge {
       background: #e9ecef;
       padding: 4px 8px;
-      border-radius: 4px;
+      border-radius: 6px;
       font-size: 0.9em;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
     }
-    .time {
-      font-size: 0.9em;
-      color: #666;
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(0, 123, 255, 0.12);
+      color: #0056b3;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
     }
-    /* 错误消息 */
+    .info-grid {
+      display: grid;
+      gap: 0.5rem;
+      font-size: 0.96rem;
+    }
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1.25rem;
+    }
     #error-message {
-      color: red;
+      color: #dc3545;
       margin-bottom: 1rem;
+      font-weight: 600;
     }
-    /* 复制按钮 */
     .copy-button {
       background: #007bff;
       border: none;
@@ -75,22 +189,20 @@
     .copy-button:hover {
       background: #0056b3;
     }
-    /* emoji 对齐 */
     .emoji {
       display: inline-block;
-      width: 1.2em;
+      width: 1.3em;
       text-align: center;
       margin-right: 0.5em;
     }
-    /* Toast 通知样式 */
     .toast {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       color: #fff;
       padding: 10px 20px;
-      border-radius: 5px;
+      border-radius: 8px;
       opacity: 0;
       transition: opacity 0.5s;
       pointer-events: none;
@@ -99,14 +211,63 @@
     .toast.show {
       opacity: 1;
     }
+    @media (max-width: 640px) {
+      body {
+        padding: 1.5rem 0;
+      }
+      .container {
+        padding: 0 1rem 2rem;
+      }
+      .page-header h1 {
+        font-size: 1.8rem;
+      }
+      .controls {
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 id="dashboard-title">KanLAN</h1>
-    <div id="kanban-information"></div>
+    <header class="page-header">
+      <div>
+        <h1 id="dashboard-title">KanLAN</h1>
+        <p id="network-subtitle" class="subtitle"></p>
+      </div>
+      <div class="controls">
+        <button class="button" id="refresh-button">立即刷新</button>
+      </div>
+    </header>
     <div id="error-message"></div>
-    <div class="grid" id="members-container"></div>
+    <div id="kanban-information" class="card"></div>
+    <section class="section">
+      <div class="section-header">
+        <h2>成员统计</h2>
+        <span id="last-updated" class="section-subtitle"></span>
+      </div>
+      <div id="member-stats" class="stat-grid"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2>已授权成员</h2>
+        <span id="authorized-count" class="section-subtitle"></span>
+      </div>
+      <div class="grid" id="authorized-members"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2>待授权成员</h2>
+        <span id="pending-count" class="section-subtitle"></span>
+      </div>
+      <div class="grid" id="pending-members"></div>
+    </section>
+    <section class="section">
+      <div class="section-header">
+        <h2>网络概览</h2>
+      </div>
+      <div id="network-overview" class="grid"></div>
+    </section>
   </div>
   <!-- Toast 提示层 -->
   <div id="toast" class="toast"></div>
@@ -127,12 +288,21 @@
 
     const errorContainer = document.getElementById('error-message');
     const kanbanInformationContainer = document.getElementById('kanban-information');
-    const membersContainer = document.getElementById('members-container');
+    const networkOverviewContainer = document.getElementById('network-overview');
+    const memberStatsContainer = document.getElementById('member-stats');
+    const authorizedMembersContainer = document.getElementById('authorized-members');
+    const pendingMembersContainer = document.getElementById('pending-members');
+    const authorizedCountLabel = document.getElementById('authorized-count');
+    const pendingCountLabel = document.getElementById('pending-count');
+    const networkSubtitle = document.getElementById('network-subtitle');
+    const lastUpdatedLabel = document.getElementById('last-updated');
+    const refreshButton = document.getElementById('refresh-button');
     const MEMBER_CACHE_KEY = `ztDashboardCache_${netId}`;
     const CACHE_DURATION = 60000; // 缓存时长：1分钟
 
     // 网络数据永久缓存的 key
     const NETWORK_CACHE_KEY = `ztNetworkCache_${netId}`;
+    const KANBAN_SECURITY_NOTICE_KEY = 'ztKanbanSecurityNoticeShown';
 
     /**
      * 显示 Toast 提示，不打断用户操作
@@ -152,7 +322,7 @@
      * @param {HTMLElement} button - 当前点击的按钮（用于触发提示）
      */
     function copyText(text, button) {
-      navigator.clipboard.writeText(text).then(() => {
+      return navigator.clipboard.writeText(text).then(() => {
         showToast(`已复制: ${text}`);
       }).catch(err => {
         console.error('复制失败: ', err);
@@ -160,16 +330,67 @@
       });
     }
 
+    function showSecurityWarningOnce() {
+      const message = '⚠️ 安全提示：此链接包含可直接访问网络的密钥, 若您需要分享给他人请1对1分享, 若在公开场景分享可能导致陌生人进入网络, 对您的网络/设备/个人信息等产生严重的安全威胁。';
+      try {
+        if (!localStorage.getItem(KANBAN_SECURITY_NOTICE_KEY)) {
+          alert(message);
+          localStorage.setItem(KANBAN_SECURITY_NOTICE_KEY, 'true');
+        }
+      } catch (error) {
+        console.warn('无法记录安全提示状态:', error);
+        alert(message);
+      }
+    }
+
+    function copyKanbanAddress(address, button) {
+      const copyResult = copyText(address, button);
+      if (copyResult && typeof copyResult.finally === 'function') {
+        copyResult.finally(showSecurityWarningOnce);
+      } else {
+        showSecurityWarningOnce();
+      }
+    }
+
+    function renderKanbanAddress(address) {
+      kanbanInformationContainer.innerHTML = '';
+
+      const wrapper = document.createElement('div');
+      const emoji = document.createElement('span');
+      emoji.className = 'emoji';
+      emoji.textContent = '🔗';
+      wrapper.appendChild(emoji);
+      wrapper.append(' Kanban 地址: ');
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.id = 'kanban-address';
+      badge.textContent = address;
+      wrapper.appendChild(badge);
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-button';
+      button.textContent = '复制';
+      button.addEventListener('click', () => copyKanbanAddress(address, button));
+      wrapper.appendChild(button);
+
+      kanbanInformationContainer.appendChild(wrapper);
+    }
+
     /**
      * 渲染单个成员卡片
      * 仅显示 authorized 为 true 的成员
      */
-    function renderMember(member) {
+    function renderMember(member, authorized = true) {
+      const lastSeen = member.lastOnline || member.lastSeen || 0;
       const now = Date.now();
-      const isOnline = (now - member.lastOnline) < 120000;
+      const isOnline = lastSeen && (now - lastSeen) < 120000;
       const internalIP = (member.config.ipAssignments && member.config.ipAssignments.length)
                            ? member.config.ipAssignments[0]
                            : null;
+      const physicalAddress = member.physicalAddress || member.clientVersion?.split('-')[0] || '未知地址';
+      const authorizationTime = member.config.authorized ? member.config?.authorizedAt : member.requestTime;
 
       let ipHtml = '';
       if (internalIP) {
@@ -180,7 +401,7 @@
       }
 
       return `
-        <div class="card">
+        <div class="card ${authorized ? '' : 'card--pending'}">
           <div style="margin-bottom: 1rem;">
             <h3 style="margin: 0;"><span class="emoji">📌</span> ${member.name || '未命名设备'}</h3>
           </div>
@@ -191,15 +412,23 @@
               <span class="badge" id="nodeid-${member.nodeId}">${member.nodeId}</span>
               <button class="copy-button" onclick="copyText('${member.nodeId}', this)">复制</button>
             </div>
-            <div><span class="emoji">📱</span> 客户端: ${member.clientVersion} (协议 v${member.protocolVersion})</div>
+            <div><span class="emoji">📡</span> 实体地址: ${physicalAddress}</div>
             <div>
-              <span class="emoji">🕒</span> 最后活动: 
+              <span class="emoji">🕒</span> 最后活动:
               ${isOnline
                 ? '<span class="status-online">🟢 在线</span>'
-                : `<span class="status-offline">🔴 离线 ${new Date(member.lastOnline).toLocaleString()}</span>`
+                : `<span class="status-offline">🔴 离线 ${lastSeen ? new Date(lastSeen).toLocaleString() : '未知'}</span>`
               }
             </div>
+            ${authorizationTime ? `<div><span class="emoji">⏱️</span> ${authorized ? '授权时间' : '请求时间'}: ${new Date(authorizationTime).toLocaleString()}</div>` : ''}
             ${ipHtml}
+          </div>
+          <div class="card-actions">
+            ${authorized
+              ? `<button class="button secondary" onclick="unauthorizeMember('${member.nodeId}')">取消授权</button>`
+              : `<button class="button" onclick="authorizeMember('${member.nodeId}')">立即授权</button>`
+            }
+            <button class="button danger" onclick="removeMember('${member.nodeId}')">移除成员</button>
           </div>
         </div>
       `;
@@ -233,18 +462,61 @@
     // 渲染数据到页面（成员信息）
     function renderData(data) {
       if (Array.isArray(data)) {
-        // 仅显示 authorized 为 true 的成员
         const authorizedMembers = data.filter(member => member.config.authorized);
-        if (authorizedMembers.length === 0) {
-          membersContainer.innerHTML = `<div class="card">没有授权的成员。</div>`;
-        } else {
-          membersContainer.innerHTML = authorizedMembers.map(renderMember).join('');
-        }
+        const pendingMembers = data.filter(member => !member.config.authorized);
+
+        authorizedMembersContainer.innerHTML = authorizedMembers.length
+          ? authorizedMembers.map(member => renderMember(member, true)).join('')
+          : `<div class="card">暂无已授权成员。</div>`;
+
+        pendingMembersContainer.innerHTML = pendingMembers.length
+          ? pendingMembers.map(member => renderMember(member, false)).join('')
+          : `<div class="card">暂无待授权成员。</div>`;
+
+        authorizedCountLabel.textContent = `共 ${authorizedMembers.length} 台设备 (${authorizedMembers.filter(isMemberOnline).length} 在线)`;
+        pendingCountLabel.textContent = `共 ${pendingMembers.length} 台待处理设备`;
+        renderMemberStats(authorizedMembers, pendingMembers);
       } else if (data.error) {
-        membersContainer.innerHTML = `<div class="card">错误: ${data.error}</div>`;
+        authorizedMembersContainer.innerHTML = `<div class="card">错误: ${data.error}</div>`;
+        pendingMembersContainer.innerHTML = '';
+        authorizedCountLabel.textContent = '';
+        pendingCountLabel.textContent = '';
       } else {
-        membersContainer.innerHTML = `<div class="card">数据格式错误</div>`;
+        authorizedMembersContainer.innerHTML = `<div class="card">数据格式错误</div>`;
+        pendingMembersContainer.innerHTML = '';
       }
+    }
+
+    function isMemberOnline(member) {
+      const lastSeen = member.lastOnline || member.lastSeen || 0;
+      return lastSeen && (Date.now() - lastSeen) < 120000;
+    }
+
+    function renderMemberStats(authorizedMembers, pendingMembers) {
+      const onlineCount = authorizedMembers.filter(isMemberOnline).length;
+      const offlineCount = authorizedMembers.length - onlineCount;
+      const pendingCount = pendingMembers.length;
+      const totalMembers = authorizedMembers.length + pendingCount;
+
+      memberStatsContainer.innerHTML = `
+        <div class="stat-card">
+          <h3>全部成员</h3>
+          <strong>${totalMembers}</strong>
+        </div>
+        <div class="stat-card">
+          <h3>在线设备</h3>
+          <strong style="color:#28a745;">${onlineCount}</strong>
+        </div>
+        <div class="stat-card">
+          <h3>离线设备</h3>
+          <strong>${offlineCount}</strong>
+        </div>
+        <div class="stat-card">
+          <h3>待授权设备</h3>
+          <strong style="color:#fd7e14;">${pendingCount}</strong>
+        </div>
+      `;
+      lastUpdatedLabel.textContent = `最近更新：${new Date().toLocaleString()}`;
     }
 
     /**
@@ -257,6 +529,7 @@
         try {
           const networkData = JSON.parse(cachedNetworkData);
           updateNetworkTitle(networkData);
+          renderNetworkOverview(networkData);
           return;
         } catch (e) {
           console.error('读取缓存网络数据失败', e);
@@ -274,6 +547,7 @@
         // 永久缓存网络数据（无过期时间）
         localStorage.setItem(NETWORK_CACHE_KEY, JSON.stringify(networkData));
         updateNetworkTitle(networkData);
+        renderNetworkOverview(networkData);
       } catch (error) {
         console.error('获取网络数据失败:', error);
         errorContainer.textContent = `获取网络数据失败: ${error.message}`;
@@ -289,22 +563,74 @@
         const networkName = networkData.config.name;
         document.title = `${networkName} - KanLAN`;
         document.getElementById('dashboard-title').textContent = `${networkName} KanLAN`;
+        networkSubtitle.textContent = `网络 ID: ${networkData.id || netId}`;
+      } else {
+        networkSubtitle.textContent = `网络 ID: ${netId}`;
       }
     }
 
+    function renderNetworkOverview(networkData) {
+      if (!networkData || !networkData.config) {
+        networkOverviewContainer.innerHTML = `<div class="card">无法加载网络详情。</div>`;
+        return;
+      }
+
+      const config = networkData.config;
+      const description = config.description || '未填写描述';
+      const isPrivate = config.private !== false;
+      const ipPools = Array.isArray(config.ipAssignmentPools) && config.ipAssignmentPools.length
+        ? config.ipAssignmentPools.map(pool => {
+            const start = pool.ipRangeStart || pool.start || '未知';
+            const end = pool.ipRangeEnd || pool.end || '未知';
+            return `${start} ~ ${end}`;
+          }).join('<br>')
+        : '未配置 IP 分配池';
+      const routes = Array.isArray(config.routes) && config.routes.length
+        ? config.routes.map(route => {
+            const target = route.target || route.destination || '未知目标';
+            const via = route.via || route.viaRouter || '';
+            return `${target}${via ? ` → ${via}` : ''}`;
+          }).join('<br>')
+        : '未配置静态路由';
+      const mtu = config.mtu || '默认';
+      const multicastLimit = config.multicastLimit ?? '默认';
+
+      networkOverviewContainer.innerHTML = `
+        <div class="card">
+          <h3 class="card-title">网络基础信息</h3>
+          <div class="info-grid">
+            <div><span class="emoji">🆔</span>网络 ID: <span class="badge">${networkData.id || netId}</span></div>
+            <div><span class="emoji">🏷️</span>网络名称: <span class="badge">${config.name || '未命名网络'}</span></div>
+            <div><span class="emoji">📝</span>描述: ${description}</div>
+            <div><span class="emoji">🔒</span>模式: <span class="tag">${isPrivate ? '私有网络' : '公开网络'}</span></div>
+            <div><span class="emoji">📶</span>MTU: ${mtu}</div>
+            <div><span class="emoji">📡</span>多播限制: ${multicastLimit}</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="card-title">地址与路由</h3>
+          <div class="info-grid">
+            <div>
+              <span class="emoji">🧭</span> IP 分配池:<br>
+              <span class="badge">${ipPools}</span>
+            </div>
+            <div>
+              <span class="emoji">🛣️</span> 静态路由:<br>
+              <span class="badge">${routes}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     // 获取成员数据
-    async function fetchData() {
+    async function fetchData(forceRefresh = false) {
       // 显示当前 KanLAN 地址
       const kanbanAddress = window.location.href;
-      const kanbanHtml = `<div>
-                             <span class="emoji">🔗</span> Kanban 地址: 
-                             <span class="badge" id="kanban-address">${kanbanAddress}</span>
-                             <button class="copy-button" onclick="copyText('${kanbanAddress}', this)">复制</button>
-                           </div>`;
-      kanbanInformationContainer.innerHTML = kanbanHtml;
+      renderKanbanAddress(kanbanAddress);
 
       // 优先尝试使用缓存（成员数据）
-      const cachedData = getCachedData();
+      const cachedData = !forceRefresh ? getCachedData() : null;
       if (cachedData) {
         console.log('使用缓存数据');
         renderData(cachedData);
@@ -337,6 +663,81 @@
     fetchData();
     // 每 1 分钟刷新一次成员数据（同时更新缓存）
     setInterval(fetchData, CACHE_DURATION);
+
+    refreshButton.addEventListener('click', () => {
+      localStorage.removeItem(MEMBER_CACHE_KEY);
+      fetchData(true);
+      showToast('正在刷新数据...');
+    });
+
+    async function authorizeMember(nodeId) {
+      try {
+        const res = await fetch(`/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId + '/member/' + nodeId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: { authorized: true } })
+        });
+        if (!res.ok) {
+          const message = await res.text();
+          throw new Error(message || `授权失败 (${res.status})`);
+        }
+        showToast('成员授权成功');
+        localStorage.removeItem(MEMBER_CACHE_KEY);
+        fetchData(true);
+      } catch (error) {
+        console.error('授权失败:', error);
+        showToast(`授权失败: ${error.message}`);
+      }
+    }
+
+    async function unauthorizeMember(nodeId) {
+      if (!confirm('确定要取消该成员的授权吗？')) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId + '/member/' + nodeId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: { authorized: false } })
+        });
+        if (!res.ok) {
+          const message = await res.text();
+          throw new Error(message || `取消授权失败 (${res.status})`);
+        }
+        showToast('已取消成员授权');
+        localStorage.removeItem(MEMBER_CACHE_KEY);
+        fetchData(true);
+      } catch (error) {
+        console.error('取消授权失败:', error);
+        showToast(`取消授权失败: ${error.message}`);
+      }
+    }
+
+    async function removeMember(nodeId) {
+      if (!confirm('确定要从网络中移除该成员吗？此操作无法撤销。')) {
+        return;
+      }
+      try {
+        const res = await fetch(`/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId + '/member/' + nodeId)}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) {
+          const message = await res.text();
+          throw new Error(message || `移除成员失败 (${res.status})`);
+        }
+        showToast('成员已移除');
+        localStorage.removeItem(MEMBER_CACHE_KEY);
+        fetchData(true);
+      } catch (error) {
+        console.error('移除成员失败:', error);
+        showToast(`移除失败: ${error.message}`);
+      }
+    }
+
+    window.authorizeMember = authorizeMember;
+    window.unauthorizeMember = unauthorizeMember;
+    window.removeMember = removeMember;
+    window.copyText = copyText;
   </script>
 </body>
 </html>
