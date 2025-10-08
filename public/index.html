@@ -302,6 +302,7 @@
 
     // 网络数据永久缓存的 key
     const NETWORK_CACHE_KEY = `ztNetworkCache_${netId}`;
+    const KANBAN_SECURITY_NOTICE_KEY = 'ztKanbanSecurityNoticeShown';
 
     /**
      * 显示 Toast 提示，不打断用户操作
@@ -321,12 +322,60 @@
      * @param {HTMLElement} button - 当前点击的按钮（用于触发提示）
      */
     function copyText(text, button) {
-      navigator.clipboard.writeText(text).then(() => {
+      return navigator.clipboard.writeText(text).then(() => {
         showToast(`已复制: ${text}`);
       }).catch(err => {
         console.error('复制失败: ', err);
         showToast('复制失败');
       });
+    }
+
+    function showSecurityWarningOnce() {
+      const message = '⚠️ 安全提示：此链接包含可直接访问 ZeroTier 网络的 API Token，泄露给陌生人将可能导致网络配置被查看或篡改。请仅在可信环境保存，并避免分享给非专业人士。';
+      try {
+        if (!localStorage.getItem(KANBAN_SECURITY_NOTICE_KEY)) {
+          alert(message);
+          localStorage.setItem(KANBAN_SECURITY_NOTICE_KEY, 'true');
+        }
+      } catch (error) {
+        console.warn('无法记录安全提示状态:', error);
+        alert(message);
+      }
+    }
+
+    function copyKanbanAddress(address, button) {
+      const copyResult = copyText(address, button);
+      if (copyResult && typeof copyResult.finally === 'function') {
+        copyResult.finally(showSecurityWarningOnce);
+      } else {
+        showSecurityWarningOnce();
+      }
+    }
+
+    function renderKanbanAddress(address) {
+      kanbanInformationContainer.innerHTML = '';
+
+      const wrapper = document.createElement('div');
+      const emoji = document.createElement('span');
+      emoji.className = 'emoji';
+      emoji.textContent = '🔗';
+      wrapper.appendChild(emoji);
+      wrapper.append(' Kanban 地址: ');
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.id = 'kanban-address';
+      badge.textContent = address;
+      wrapper.appendChild(badge);
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'copy-button';
+      button.textContent = '复制';
+      button.addEventListener('click', () => copyKanbanAddress(address, button));
+      wrapper.appendChild(button);
+
+      kanbanInformationContainer.appendChild(wrapper);
     }
 
     /**
@@ -578,12 +627,7 @@
     async function fetchData(forceRefresh = false) {
       // 显示当前 KanLAN 地址
       const kanbanAddress = window.location.href;
-      const kanbanHtml = `<div>
-                             <span class="emoji">🔗</span> Kanban 地址:
-                             <span class="badge" id="kanban-address">${kanbanAddress}</span>
-                             <button class="copy-button" onclick="copyText('${kanbanAddress}', this)">复制</button>
-                           </div>`;
-      kanbanInformationContainer.innerHTML = kanbanHtml;
+      renderKanbanAddress(kanbanAddress);
 
       // 优先尝试使用缓存（成员数据）
       const cachedData = !forceRefresh ? getCachedData() : null;
