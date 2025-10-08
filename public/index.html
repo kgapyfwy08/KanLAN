@@ -44,12 +44,46 @@
       grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 1rem;
     }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0 0;
+    }
+    .summary-stat {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .summary-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #007bff;
+      display: block;
+    }
+    .summary-label {
+      font-size: 0.85rem;
+      color: #555;
+    }
     /* 徽章和时间样式 */
     .badge {
       background: #e9ecef;
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 0.9em;
+      display: inline-block;
+    }
+    .badge.warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .badge.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .badge.route-badge {
+      margin: 0 0.25rem 0.25rem 0;
     }
     .time {
       font-size: 0.9em;
@@ -74,6 +108,79 @@
     }
     .copy-button:hover {
       background: #0056b3;
+    }
+    .action-button {
+      background: #17a2b8;
+      border: none;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .action-button:hover {
+      background: #138496;
+    }
+    .action-button.success {
+      background: #28a745;
+    }
+    .action-button.success:hover {
+      background: #1e7e34;
+    }
+    .action-button.danger {
+      background: #dc3545;
+    }
+    .action-button.danger:hover {
+      background: #bd2130;
+    }
+    .controls-card {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+    .controls .toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.95rem;
+      color: #555;
+    }
+    .search-input {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .summary-meta {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .summary-section {
+      margin-top: 0.75rem;
+      font-size: 0.95rem;
+      color: #444;
+    }
+    .member-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .empty-state {
+      text-align: center;
+      color: #666;
+    }
+    @media (max-width: 600px) {
+      .summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
     }
     /* emoji 对齐 */
     .emoji {
@@ -104,7 +211,19 @@
 <body>
   <div class="container">
     <h1 id="dashboard-title">KanLAN</h1>
-    <div id="kanban-information"></div>
+    <div id="kanban-information">
+      <div id="summary-card" class="card">正在加载网络概览...</div>
+      <div class="card controls-card">
+        <div class="controls">
+          <button id="refresh-button" class="action-button">刷新成员数据</button>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-unauthorized">
+            <span>显示未授权成员</span>
+          </label>
+        </div>
+        <input type="search" id="member-search" class="search-input" placeholder="搜索名称、备注或 Node ID">
+      </div>
+    </div>
     <div id="error-message"></div>
     <div class="grid" id="members-container"></div>
   </div>
@@ -126,13 +245,22 @@
     document.getElementById('dashboard-title').textContent = `${netId} KanLAN`;
 
     const errorContainer = document.getElementById('error-message');
-    const kanbanInformationContainer = document.getElementById('kanban-information');
+    const summaryCard = document.getElementById('summary-card');
+    const refreshButton = document.getElementById('refresh-button');
+    const toggleUnauthorized = document.getElementById('toggle-unauthorized');
+    const searchInput = document.getElementById('member-search');
     const membersContainer = document.getElementById('members-container');
     const MEMBER_CACHE_KEY = `ztDashboardCache_${netId}`;
     const CACHE_DURATION = 60000; // 缓存时长：1分钟
 
     // 网络数据永久缓存的 key
     const NETWORK_CACHE_KEY = `ztNetworkCache_${netId}`;
+    const KANBAN_ADDRESS = window.location.href;
+
+    let networkDetails = null;
+    let membersState = [];
+    let showUnauthorizedMembers = false;
+    let searchKeyword = '';
 
     /**
      * 显示 Toast 提示，不打断用户操作
@@ -162,7 +290,6 @@
 
     /**
      * 渲染单个成员卡片
-     * 仅显示 authorized 为 true 的成员
      */
     function renderMember(member) {
       const now = Date.now();
@@ -170,6 +297,7 @@
       const internalIP = (member.config.ipAssignments && member.config.ipAssignments.length)
                            ? member.config.ipAssignments[0]
                            : null;
+      const isAuthorized = !!member.config.authorized;
 
       let ipHtml = '';
       if (internalIP) {
@@ -179,10 +307,36 @@
                   </div>`;
       }
 
+      const externalIps = Array.isArray(member.config.ipAssignments) && member.config.ipAssignments.length > 1
+        ? member.config.ipAssignments.slice(1).map(ip => `<span class="badge">${ip}</span>`).join(' ')
+        : '';
+
+      const routes = Array.isArray(member.routes) && member.routes.length
+        ? `<div><span class="emoji">🛣️</span> 路由: ${member.routes.map(route => `<span class="badge route-badge">${route.target}${route.via ? ` → ${route.via}` : ''}</span>`).join(' ')}</div>`
+        : '';
+
+      const authorizationBadge = isAuthorized
+        ? '<span class="badge success">已授权</span>'
+        : '<span class="badge warning">未授权</span>';
+
+      const actions = [];
+      if (isAuthorized) {
+        actions.push(`<button class="action-button danger" data-action="toggle-authorization" data-member-id="${member.nodeId}" data-authorized="false">取消授权</button>`);
+        actions.push(`<button class="action-button danger" data-action="remove-member" data-member-id="${member.nodeId}">移除成员</button>`);
+      } else {
+        actions.push(`<button class="action-button success" data-action="toggle-authorization" data-member-id="${member.nodeId}" data-authorized="true">授权成员</button>`);
+        actions.push(`<button class="action-button danger" data-action="remove-member" data-member-id="${member.nodeId}">移除成员</button>`);
+      }
+
+      const hardwareInfo = member.deviceName || member.hardwareAddress
+        ? `<div><span class="emoji">💻</span> 设备信息: ${member.deviceName ? `<span class="badge">${member.deviceName}</span>` : ''} ${member.hardwareAddress ? `<span class="badge">${member.hardwareAddress}</span>` : ''}</div>`
+        : '';
+
       return `
         <div class="card">
           <div style="margin-bottom: 1rem;">
             <h3 style="margin: 0;"><span class="emoji">📌</span> ${member.name || '未命名设备'}</h3>
+            ${authorizationBadge}
           </div>
           <div style="display: grid; gap: 0.5rem;">
             ${member.description ? `<div><span class="emoji">📝</span> 备注: <span class="badge">${member.description}</span></div>` : ''}
@@ -193,14 +347,20 @@
             </div>
             <div><span class="emoji">📱</span> 客户端: ${member.clientVersion} (协议 v${member.protocolVersion})</div>
             <div>
-              <span class="emoji">🕒</span> 最后活动: 
+              <span class="emoji">🕒</span> 最后活动:
               ${isOnline
                 ? '<span class="status-online">🟢 在线</span>'
                 : `<span class="status-offline">🔴 离线 ${new Date(member.lastOnline).toLocaleString()}</span>`
               }
             </div>
             ${ipHtml}
+            ${externalIps ? `<div><span class="emoji">🌐</span> 额外 IP: ${externalIps}</div>` : ''}
+            ${hardwareInfo}
+            ${member.physicalAddress ? `<div><span class="emoji">🔧</span> 物理地址: <span class="badge">${member.physicalAddress}</span></div>` : ''}
+            ${routes}
+            <div><span class="emoji">📶</span> 最近信号质量: <span class="badge">${member.recentLatency || '未知'}</span></div>
           </div>
+          <div class="member-actions">${actions.join('')}</div>
         </div>
       `;
     }
@@ -233,18 +393,14 @@
     // 渲染数据到页面（成员信息）
     function renderData(data) {
       if (Array.isArray(data)) {
-        // 仅显示 authorized 为 true 的成员
-        const authorizedMembers = data.filter(member => member.config.authorized);
-        if (authorizedMembers.length === 0) {
-          membersContainer.innerHTML = `<div class="card">没有授权的成员。</div>`;
-        } else {
-          membersContainer.innerHTML = authorizedMembers.map(renderMember).join('');
-        }
+        membersState = data;
+        renderMembers();
       } else if (data.error) {
         membersContainer.innerHTML = `<div class="card">错误: ${data.error}</div>`;
       } else {
         membersContainer.innerHTML = `<div class="card">数据格式错误</div>`;
       }
+      renderNetworkSummary();
     }
 
     /**
@@ -256,14 +412,16 @@
       if (cachedNetworkData) {
         try {
           const networkData = JSON.parse(cachedNetworkData);
+          networkDetails = networkData;
           updateNetworkTitle(networkData);
+          renderNetworkSummary();
           return;
         } catch (e) {
           console.error('读取缓存网络数据失败', e);
         }
       }
       // 构造Network API 地址
-      const networkAPIPath = `/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId)}`;
+      const networkAPIPath = `/api/networks/${netId}?token=${encodeURIComponent(token)}`;
       try {
         // 发起请求到 ZeroTier 生产环境 API
         const response = await fetch(networkAPIPath);
@@ -271,9 +429,11 @@
           throw new Error(`HTTP 错误: ${response.status}`);
         }
         const networkData = await response.json();
+        networkDetails = networkData;
         // 永久缓存网络数据（无过期时间）
         localStorage.setItem(NETWORK_CACHE_KEY, JSON.stringify(networkData));
         updateNetworkTitle(networkData);
+        renderNetworkSummary();
       } catch (error) {
         console.error('获取网络数据失败:', error);
         errorContainer.textContent = `获取网络数据失败: ${error.message}`;
@@ -292,19 +452,92 @@
       }
     }
 
-    // 获取成员数据
-    async function fetchData() {
-      // 显示当前 KanLAN 地址
-      const kanbanAddress = window.location.href;
-      const kanbanHtml = `<div>
-                             <span class="emoji">🔗</span> Kanban 地址: 
-                             <span class="badge" id="kanban-address">${kanbanAddress}</span>
-                             <button class="copy-button" onclick="copyText('${kanbanAddress}', this)">复制</button>
-                           </div>`;
-      kanbanInformationContainer.innerHTML = kanbanHtml;
+    function renderNetworkSummary() {
+      if (!summaryCard) return;
 
+      const totalMembers = membersState.length;
+      const authorizedMembers = membersState.filter(member => member.config.authorized).length;
+      const unauthorizedMembers = totalMembers - authorizedMembers;
+      const onlineMembers = membersState.filter(member => member.config.authorized && (Date.now() - member.lastOnline) < 120000).length;
+
+      const networkName = networkDetails?.config?.name || netId;
+      const networkType = networkDetails ? (networkDetails.config?.private === false ? '公有网络' : '私有网络') : '未知';
+      const assignmentPools = Array.isArray(networkDetails?.config?.ipAssignmentPools)
+        ? networkDetails.config.ipAssignmentPools.map(pool => `${pool.ipRangeStart} - ${pool.ipRangeEnd}`)
+        : [];
+      const routes = Array.isArray(networkDetails?.routes)
+        ? networkDetails.routes.map(route => `${route.target}${route.via ? ` → ${route.via}` : ''}`)
+        : [];
+      const dnsServers = Array.isArray(networkDetails?.config?.dns?.servers)
+        ? networkDetails.config.dns.servers
+        : [];
+
+      summaryCard.innerHTML = `
+        <h2>${networkName} 网络概览</h2>
+        <div class="summary-meta">
+          <div><span class="emoji">🆔</span> 网络 ID: <span class="badge" id="network-id-badge">${netId}</span>
+            <button class="copy-button" onclick="copyText('${netId}', this)">复制</button>
+          </div>
+          <div><span class="emoji">🔗</span> Kanban 地址: <span class="badge" id="kanban-address">${KANBAN_ADDRESS}</span>
+            <button class="copy-button" onclick="copyText('${KANBAN_ADDRESS}', this)">复制</button>
+          </div>
+          <div><span class="emoji">🔒</span> 网络类型: <span class="badge">${networkType}</span></div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-stat">
+            <span class="summary-value">${totalMembers}</span>
+            <span class="summary-label">成员总数</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-value">${authorizedMembers}</span>
+            <span class="summary-label">已授权成员</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-value">${onlineMembers}</span>
+            <span class="summary-label">在线成员</span>
+          </div>
+          <div class="summary-stat">
+            <span class="summary-value">${unauthorizedMembers}</span>
+            <span class="summary-label">待授权成员</span>
+          </div>
+        </div>
+        ${assignmentPools.length ? `<div class="summary-section"><span class="emoji">📡</span> 地址池: ${assignmentPools.map(range => `<span class="badge">${range}</span>`).join(' ')}</div>` : ''}
+        ${routes.length ? `<div class="summary-section"><span class="emoji">🛣️</span> 网络路由: ${routes.map(route => `<span class="badge route-badge">${route}</span>`).join(' ')}</div>` : ''}
+        ${dnsServers.length ? `<div class="summary-section"><span class="emoji">🧭</span> DNS: ${dnsServers.map(server => `<span class="badge">${server}</span>`).join(' ')}</div>` : ''}
+      `;
+    }
+
+    function renderMembers() {
+      if (!Array.isArray(membersState) || membersState.length === 0) {
+        membersContainer.innerHTML = `<div class="card empty-state">暂时没有成员数据。</div>`;
+        return;
+      }
+
+      const filteredMembers = membersState
+        .filter(member => (showUnauthorizedMembers || member.config.authorized))
+        .filter(member => {
+          if (!searchKeyword) return true;
+          const keyword = searchKeyword.toLowerCase();
+          const info = [member.name, member.description, member.nodeId, member.physicalAddress]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+          return info.includes(keyword);
+        })
+        .sort((a, b) => Number(b.lastOnline || 0) - Number(a.lastOnline || 0));
+
+      if (filteredMembers.length === 0) {
+        membersContainer.innerHTML = `<div class="card empty-state">未找到匹配的成员。</div>`;
+        return;
+      }
+
+      membersContainer.innerHTML = filteredMembers.map(renderMember).join('');
+    }
+
+    // 获取成员数据
+    async function fetchData(forceRefresh = false) {
       // 优先尝试使用缓存（成员数据）
-      const cachedData = getCachedData();
+      const cachedData = !forceRefresh ? getCachedData() : null;
       if (cachedData) {
         console.log('使用缓存数据');
         renderData(cachedData);
@@ -314,7 +547,7 @@
       errorContainer.textContent = '加载数据中...';
 
       // 构造成员 API 地址
-      const memberAPIPath = `/api?token=${encodeURIComponent(token)}&path=${encodeURIComponent('/network/' + netId + '/member')}`;
+      const memberAPIPath = `/api/networks/${netId}/members?token=${encodeURIComponent(token)}`;
 
       try {
         const response = await fetch(memberAPIPath);
@@ -332,11 +565,102 @@
       }
     }
 
+    async function updateMemberAuthorization(memberId, authorized, button) {
+      button.disabled = true;
+      button.textContent = authorized ? '授权中...' : '取消授权中...';
+      try {
+        const response = await fetch(`/api/networks/${netId}/members/${memberId}?token=${encodeURIComponent(token)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ config: { authorized } })
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'ZeroTier API 响应异常');
+        }
+        showToast(authorized ? '成员已授权' : '已取消授权');
+        localStorage.removeItem(MEMBER_CACHE_KEY);
+        await fetchData(true);
+      } catch (error) {
+        console.error('更新成员授权失败:', error);
+        showToast(`操作失败: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = authorized ? '授权成员' : '取消授权';
+      }
+    }
+
+    async function removeMember(memberId, button) {
+      const confirmed = window.confirm('确定要移除此成员吗？此操作会从网络中删除该设备。');
+      if (!confirmed) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = '移除中...';
+
+      try {
+        const response = await fetch(`/api/networks/${netId}/members/${memberId}?token=${encodeURIComponent(token)}`, {
+          method: 'DELETE'
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'ZeroTier API 响应异常');
+        }
+        showToast('成员已移除');
+        localStorage.removeItem(MEMBER_CACHE_KEY);
+        await fetchData(true);
+      } catch (error) {
+        console.error('移除成员失败:', error);
+        showToast(`移除失败: ${error.message}`);
+      } finally {
+        button.disabled = false;
+        button.textContent = '移除成员';
+      }
+    }
+
+    membersContainer.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const action = target.getAttribute('data-action');
+      if (!action) return;
+
+      const memberId = target.getAttribute('data-member-id');
+      if (!memberId) return;
+
+      if (action === 'toggle-authorization') {
+        const authorize = target.getAttribute('data-authorized') === 'true';
+        updateMemberAuthorization(memberId, authorize, target);
+      } else if (action === 'remove-member') {
+        removeMember(memberId, target);
+      }
+    });
+
+    refreshButton.addEventListener('click', () => {
+      localStorage.removeItem(MEMBER_CACHE_KEY);
+      fetchData(true);
+    });
+
+    toggleUnauthorized.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      showUnauthorizedMembers = target.checked;
+      renderMembers();
+    });
+
+    searchInput.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      searchKeyword = target.value.trim();
+      renderMembers();
+    });
+
     // 初始加载：先获取网络详情（仅一次），再加载成员数据
     fetchNetworkData();
     fetchData();
     // 每 1 分钟刷新一次成员数据（同时更新缓存）
-    setInterval(fetchData, CACHE_DURATION);
+    setInterval(() => fetchData(true), CACHE_DURATION);
   </script>
 </body>
 </html>
